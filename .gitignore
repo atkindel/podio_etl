@@ -1,5 +1,6 @@
 # JSON item outputs
 *.json
+*.txt
 
 # API key
 *.cfg
