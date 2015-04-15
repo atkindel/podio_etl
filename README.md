@@ -1,2 +1,2 @@
 # podio_etl
-Grab workspace data from Podio
+Pull project data from Podio API
