@@ -1,16 +1,20 @@
 from pypodio2 import api
 import json
+import getpass
+import ConfigParser
 
-username = input("Username: ")
-password = input("Password: ")
+# Get API credentials
+config = ConfigParser.RawConfigParser()
+config.read('key.cfg')
+app = config.get('APIKey', 'app')
+key = config.get('APIKey', 'key')
 
-c = api.OAuthClient(
-    "podioetl",
-    "bTirJmifPffG5swVMYDCdbnzIxDbw18TAEcT8qMCpUJxbvEb2O6aNQDVxqm8km18",
-    username,
-    password,
-)
+# Get user credentials
+username = raw_input("Username: ")
+password = getpass.getpass("Password: ")
 
+# Extract sample item for analysis
+c = api.OAuthClient(app, key, username, password)
 s = c.Item.find(265515261)
 
 # Pretty print JSON output for review
