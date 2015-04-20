@@ -21,16 +21,20 @@ def parseCourseURL(url):
     @type url: String
     '''
     out = ''
-    # if https://class.stanford.edu/courses/English/10poems/Spring2015/about -> English/10poems/Spring2015
     if ("stanford.edu" in url):
-        head = #35 for class.stanford.edu, but not for lagunita... what to do here?
+        #format: https://class.stanford.edu/courses/English/10poems/Spring2015/about -> English/10poems/Spring2015
+        head = url.find("courses/")+8 #index of triplet start
         trail = url.find("/about")
         out = url[head:trail]
     elif ("coursera.org" in url):
-        #TODO: parse Cera URLs
+        #format: https://stanford.coursera.org/cs276-003
+        head = url.find(".org/")+5 #index of course ID start
+        out = url[head:]
     elif ("novoed.com" in url):
-        #TODO: parse Ned URLs
-    else
+        #format: https://novoed.com/ela-north-carolina
+        head = url.find(".com/")+5 #index of course ID start
+        out = url[head:]
+    else:
         out = "N/A"
 
     return out
@@ -48,7 +52,7 @@ def parseFields(projects):
     projectData = dict()
     for proj in projects['items']:
         # Build fields dict, initialize by
-        fieldData = dict('title': proj['title'])
+        fieldData = { 'title': proj['title'] }
         for field in proj['fields']:
             ext_id = field['external_id']
 
@@ -73,8 +77,8 @@ def parseFields(projects):
 
             # type: embed
             elif field['type'] == "embed":
-                #TODO: derive course DS-identifier from URLs
-                pass
+                url = field['values'][0]['embed']['original_url']
+                fieldData[ext_id] = parseCourseURL(url)
 
             # type: date
             elif field['type'] == "date":
