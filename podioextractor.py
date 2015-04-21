@@ -43,9 +43,11 @@ class PodioExtractor(object):
         @param url: Platform URL
         @type url: String
         '''
-        #TODO: Exact match to db-internal ids (trim slashes?)
-        purl = urlparse(url)
-        return purl.path
+        cid = urlparse(url).path
+        if 'stanford.edu' in url:
+            cid = cid[8:-5] # remove extra info from SU URLs
+        cid.strip('/')
+        return cid
 
     def __transformBatch(self, projects):
         '''
@@ -127,7 +129,7 @@ class PodioExtractor(object):
 
     def getProjects(self, username, password, total):
         '''
-        Primary client method. In batches of 200 projects, extracts projects and
+        Primary client method. In batches of 500 projects, extracts projects and
         parses project data into intermediate representation. Returns dictionary
         matching project IDs to projects, which are themselves represented as
         dicts of field IDs to field values.
@@ -140,7 +142,7 @@ class PodioExtractor(object):
         @type num_projs: Integer
         '''
         projects = dict()
-        batch_size = 200
+        batch_size = total if total<=500 else 500
         off = 0
         while off < total:
             batch = self.__extractBatch(username, password, batch_size, off)
