@@ -9,6 +9,7 @@ import sys
 class PodioExtractor(object):
     '''
     Interface to Podio API for extracting project information.
+    Author: Alex Kindel
     '''
     def __init__(self, config):
         '''
@@ -35,23 +36,24 @@ class PodioExtractor(object):
         sys.stderr.write(prompt)
         return raw_input()
 
-    def parseCourseURL(self, url):
+    def __parseCourseURL(self, url):
         '''
         Derives database identifiers from URLs.
 
         @param url: Platform URL
         @type url: String
         '''
+        #TODO: Exact match to db-internal ids (trim slashes?)
         purl = urlparse(url)
         return purl.path
 
-    def transformProjects(self, projects):
+    def __transformBatch(self, projects):
         '''
-        Takes raw JSON-formatted projects from Podio and produces a dictionary
-        mapping project IDs to a dictionary of data fields for each project.
+        Takes raw projects from Podio and produces a dictionary mapping project
+        IDs to a dictionary of data fields for each project.
 
-        @param projects: JSON-formatted string from Podio API
-        @type projects: String
+        @param projects: Raw dict of projects out of Podio API
+        @type projects: Dictionary
         '''
         #TODO: Document output into SQL schema
 
@@ -86,9 +88,9 @@ class PodioExtractor(object):
                     url = field['values'][0]['embed']['original_url']
                     fieldData[ext_id] = url
 
-                    # parse db internal id for course if correct URL
+                    # parse db-internal id for course if correct URL
                     if ext_id == 'course-url':
-                        fieldData['course_display_name'] = self.parseCourseURL(url)
+                        fieldData['course_display_name'] = self.__parseCourseURL(url)
 
                 # type: date
                 elif field['type'] == "date":
@@ -108,22 +110,44 @@ class PodioExtractor(object):
 
         return projectData
 
-    def extractProjects(self, username, password, num_projs):
+    def __extractBatch(self, username, password, batch_size, off):
         '''
-        Given user login information, return JSON-formatted projects.
+        Given user login information, return dict of projects.
 
         @param username: Username for Podio account (usually an email address)
         @type username: String
         @param password: Password for Podio account
         @type password: String
-        @param num_projs:
-        @type num_projs:
+        @param batch_size: Number of projects to pull in this batch
+        @type batch_size: Integer
         '''
-        #TODO: Currently limited to pulling 500 projects at once.
         c = api.OAuthClient(self.etl, self.key, username, password)
-        projects = c.Application.get_items(app_id = self.app, limit = num_projs)
+        projects = c.Application.get_items(app_id = self.app, limit = batch_size, offset = off)
         return projects
 
+    def getProjects(self, username, password, total):
+        '''
+        Primary client method. In batches of 200 projects, extracts projects and
+        parses project data into intermediate representation. Returns dictionary
+        matching project IDs to projects, which are themselves represented as
+        dicts of field IDs to field values.
+
+        @param username: Username for Podio account (usually an email address)
+        @type username: String
+        @param password: Password for Podio account
+        @type password: String
+        @param num_projs: Total number of projects to pull
+        @type num_projs: Integer
+        '''
+        projects = dict()
+        batch_size = 200
+        off = 0
+        while off < total:
+            batch = self.__extractBatch(username, password, batch_size, off)
+            parsed = self.__transformBatch(batch)
+            projects.update(parsed)
+            off += batch_size
+        return projects
 
 
 # Driver for extracting projects when module called from command line. Pulls all
@@ -136,17 +160,13 @@ if __name__ == '__main__':
     # Initialize extractor
     extractor = PodioExtractor('key.cfg')
 
-    # Get credentials from user
+    # Get user input
     username = extractor.user_input('Username: ')
     password = getpass.getpass('Password: ')
+    total = int(extractor.user_input('How many projects to pull?: '))
 
     # Using extractor, pull projects from Podio
-    total = int(extractor.user_input('How many projects to pull?: '))
-    projs = extractor.extractProjects(username, password, total)
-
-    # Output project JSON (pretty-printed)
-    pp_projs = json.dumps(obj=projs, sort_keys=True, indent=4, separators=(',', ': '))
-    print(pp_projs)
-
-    # Transform extracted projects
-    parsed_projs = extractor.transformProjects(projs)
+    projects = extractor.getProjects(username, password, total)
+    pp = json.dumps(obj=projects, sort_keys=True, indent=4)
+    print pp
+    sys.stderr.write("Successfully extracted %d projects.\n" % len(projects))
