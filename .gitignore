@@ -4,3 +4,6 @@
 
 # API key
 *.cfg
+
+# Compiled code
+*.pyc
