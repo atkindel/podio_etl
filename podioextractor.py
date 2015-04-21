@@ -2,6 +2,7 @@ from pypodio2 import api
 import json
 import getpass
 import ConfigParser
+from urlparse import urlparse
 import sys
 
 
@@ -34,34 +35,17 @@ class PodioExtractor(object):
         sys.stderr.write(prompt)
         return raw_input()
 
-    def parseCourseURL(url):
+    def parseCourseURL(self, url):
         '''
         Derives database identifiers from URLs.
 
         @param url: Platform URL
         @type url: String
         '''
-        out = ''
-        #TODO: this may not work for all stanford.edu URLs
-        if ("stanford.edu" in url):
-            #format: https://class.stanford.edu/courses/English/10poems/Spring2015/about -> English/10poems/Spring2015
-            head = url.find("courses/")+8 #index of triplet start
-            tail = url.find("/about")
-            out = url[head:tail]
-        elif ("coursera.org" in url):
-            #format: https://stanford.coursera.org/cs276-003
-            head = url.find(".org/")+5 #index of course ID start
-            out = url[head:]
-        elif ("novoed.com" in url):
-            #format: https://novoed.com/ela-north-carolina
-            head = url.find(".com/")+5 #index of course ID start
-            out = url[head:]
-        else:
-            out = "N/A"
+        purl = urlparse(url)
+        return purl.path
 
-        return out
-
-    def transformProjects(projects):
+    def transformProjects(self, projects):
         '''
         Takes raw JSON-formatted projects from Podio and produces a dictionary
         mapping project IDs to a dictionary of data fields for each project.
@@ -69,12 +53,11 @@ class PodioExtractor(object):
         @param projects: JSON-formatted string from Podio API
         @type projects: String
         '''
-        #TODO: document fields not ingested and rationale
-        #TODO: document this schema
+        #TODO: Document output into SQL schema
 
         projectData = dict()
         for proj in projects['items']:
-            # Build fields dict, initialize by
+            # Build fields dict, initialize with course title
             fieldData = { 'title': proj['title'] }
             for field in proj['fields']:
                 ext_id = field['external_id']
@@ -102,7 +85,10 @@ class PodioExtractor(object):
                 elif field['type'] == "embed":
                     url = field['values'][0]['embed']['original_url']
                     fieldData[ext_id] = url
-                    fieldData['course_display_name'] = parseCourseURL(url)
+
+                    # parse db internal id for course if correct URL
+                    if ext_id == 'course-url':
+                        fieldData['course_display_name'] = self.parseCourseURL(url)
 
                 # type: date
                 elif field['type'] == "date":
@@ -116,7 +102,7 @@ class PodioExtractor(object):
                 elif field['type'] == "progress":
                     pass
 
-            # Map project uid to fields dict
+            # Finally, map project uid to built fields dict
             uid = proj['app_item_id']
             projectData[uid] = fieldData
 
@@ -163,4 +149,4 @@ if __name__ == '__main__':
     print(pp_projs)
 
     # Transform extracted projects
-    # parsed_projs = extractor.transformProjects(projs)
+    parsed_projs = extractor.transformProjects(projs)
