@@ -46,7 +46,7 @@ class PodioExtractor(object):
         cid = urlparse(url).path
         if 'stanford.edu' in url:
             cid = cid[8:-5] # remove extra info from SU URLs
-        cid.strip('/')
+        cid = cid.strip('/')
         return cid
 
     def __transformBatch(self, projects):
@@ -66,44 +66,47 @@ class PodioExtractor(object):
             for field in proj['fields']:
                 ext_id = field['external_id']
 
-                # type: category
-                if field['type'] == "category":
-                    fieldData[ext_id] = field['values'][0]['value']['text']
+                try:
+                    # type: category
+                    if field['type'] == "category":
+                        fieldData[ext_id] = field['values'][0]['value']['text']
 
-                # type: text
-                elif field['type'] == "text":
-                    #TODO: Scrub HTML from input
-                    fieldData[ext_id] = field['values'][0]['value']
+                    # type: text
+                    elif field['type'] == "text":
+                        #TODO: Scrub HTML from input
+                        fieldData[ext_id] = field['values'][0]['value']
 
-                # type: contact
-                elif field['type'] == "text":
-                    fieldData[ext_id + "-name"] = field['values'][0]['value']['name']
-                    fieldData[ext_id + "-title"] = field['values'][0]['value']['title']
-                    fieldData[ext_id + "-org"] = field['values'][0]['value']['organization']
+                    # type: contact
+                    elif field['type'] == "contact":
+                        fieldData[ext_id + "-name"] = field['values'][0]['value']['name']
+                        fieldData[ext_id + "-title"] = field['values'][0]['value']['title'][0]
+                        fieldData[ext_id + "-org"] = field['values'][0]['value']['organization']
 
-                # type: duration
-                elif field['type'] == "duration":
-                    fieldData[ext_id] = field['values'][0]['value']
+                    # type: duration
+                    elif field['type'] == "duration":
+                        fieldData[ext_id] = field['values'][0]['value']
 
-                # type: embed
-                elif field['type'] == "embed":
-                    url = field['values'][0]['embed']['original_url']
-                    fieldData[ext_id] = url
+                    # type: embed
+                    elif field['type'] == "embed":
+                        url = field['values'][0]['embed']['original_url']
+                        fieldData[ext_id] = url
 
-                    # parse db-internal id for course if correct URL
-                    if ext_id == 'course-url':
-                        fieldData['course_display_name'] = self.__parseCourseURL(url)
+                        # parse db-internal id for course if correct URL
+                        if ext_id == 'course-url':
+                            fieldData['course-display-name'] = self.__parseCourseURL(url)
 
-                # type: date
-                elif field['type'] == "date":
-                    fieldData[ext_id] = field['values'][0]['start']
+                    # type: date
+                    elif field['type'] == "date":
+                        fieldData[ext_id] = field['values'][0]['start']
 
-                # type: money
-                elif field['type'] == "money":
-                    fieldData[ext_id] = field['values'][0]['value']
+                    # type: money
+                    elif field['type'] == "money":
+                        fieldData[ext_id] = field['values'][0]['value']
 
-                # type: progress (not used here)
-                elif field['type'] == "progress":
+                    # type: progress (not used here)
+                    elif field['type'] == "progress":
+                        pass
+                except KeyError:
                     pass
 
             # Finally, map project uid to built fields dict
@@ -127,12 +130,12 @@ class PodioExtractor(object):
         projects = c.Application.get_items(app_id = self.app, limit = batch_size, offset = off)
         return projects
 
-    def getProjects(self, username, password, total):
+    def getProjects(self, username, password, total=2000):
         '''
-        Primary client method. In batches of 500 projects, extracts projects and
-        parses project data into intermediate representation. Returns dictionary
-        matching project IDs to projects, which are themselves represented as
-        dicts of field IDs to field values.
+        Primary client method. In batches of up to 500 projects, extracts
+        projects and parses project data into intermediate representation.
+        Returns dictionary matching project IDs to projects, which are
+        themselves represented as dicts of field IDs to field values.
 
         @param username: Username for Podio account (usually an email address)
         @type username: String
@@ -155,7 +158,8 @@ class PodioExtractor(object):
 # Driver for extracting projects when module called from command line. Pulls all
 # items from Podio project application and extracts key-value pairs matching
 # external_id to value based on field_type. Requires correct config file and
-# appropriate user credentials on Podio to work correctly.
+# appropriate user credentials on Podio to work correctly. Pulls all projects by
+# default, but module allows client script to decide how many projects pulled.
 
 if __name__ == '__main__':
 
@@ -165,10 +169,9 @@ if __name__ == '__main__':
     # Get user input
     username = extractor.user_input('Username: ')
     password = getpass.getpass('Password: ')
-    total = int(extractor.user_input('How many projects to pull?: '))
 
     # Using extractor, pull projects from Podio
-    projects = extractor.getProjects(username, password, total)
+    projects = extractor.getProjects(username, password)
     pp = json.dumps(obj=projects, sort_keys=True, indent=4)
     print pp
     sys.stderr.write("Successfully extracted %d projects.\n" % len(projects))
