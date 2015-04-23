@@ -13,7 +13,13 @@ class PodioExtractor(object):
     '''
     def __init__(self, config):
         '''
-        @param config: .cfg file with api config info
+        Initialize with a config file.
+
+        @param config: .cfg file with api config info. Expected format as follows:
+        [APIKey]
+        etl=<Podio client ID>
+        key=<Podio client secret>
+        app=<Podio app number>
         @type config: String
         '''
         try:
