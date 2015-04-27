@@ -42,6 +42,12 @@ class PodioExtractor(object):
         sys.stderr.write(prompt)
         return raw_input()
 
+    def __cleanQuotes(self, text):
+        '''
+        Eliminates quote marks from a given string.
+        '''
+        return text.replace('"', '').replace("'", "")
+
     def __parseCourseURL(self, url):
         '''
         Derives database identifiers from URLs.
@@ -49,7 +55,6 @@ class PodioExtractor(object):
         @param url: Platform URL
         @type url: String
         '''
-        url = url.replace('"', '') # clean out extraneous quotes
         cid = urlparse(url).path
         if 'stanford.edu' in url:
             cid = cid[8:-5] # remove extra info from SU URLs
@@ -79,7 +84,9 @@ class PodioExtractor(object):
 
                     # type: text
                     elif field['type'] == "text":
-                        fieldData[ext_id] = field['values'][0]['value']
+                        text = field['values'][0]['value']
+                        text = self.__cleanQuotes(text)
+                        fieldData[ext_id] = text
 
                     # type: contact
                     elif field['type'] == "contact":
@@ -94,6 +101,7 @@ class PodioExtractor(object):
                     # type: embed
                     elif field['type'] == "embed":
                         url = field['values'][0]['embed']['original_url']
+                        url = self.__cleanQuotes(url) #remove extraneous quotation marks
                         fieldData[ext_id] = url
 
                         # parse db-internal id for course if correct URL

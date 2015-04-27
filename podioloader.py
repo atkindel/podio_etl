@@ -126,7 +126,7 @@ class PodioLoader(MySQLDB):
             keys = self.__listify(data.keys(), True)
             values = self.__listify(data.values())
             query = "INSERT INTO %s(%s) VALUES (%s);" % (table, keys, values)
-            self.execute(query)
+            self.execute(query.encode('UTF_8', 'ignore'))
 
     def loadProjects(self, projects):
         '''
