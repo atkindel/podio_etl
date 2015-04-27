@@ -1,4 +1,3 @@
-
 from pymysql_utils1 import MySQLDB
 import getpass
 from podioextractor import PodioExtractor
@@ -14,70 +13,120 @@ class PodioLoader(MySQLDB):
         Defines schema for project data and sets up database accordingly.
         '''
         # Build database if needed
-        db.execute("CREATE DATABASE IF NOT EXISTS `Podio`;")
+        self.execute("CREATE DATABASE IF NOT EXISTS `Podio`;")
 
         # Drop pre-existing tables
-        db.execute("DROP TABLE IF EXISTS `CourseIDMap`;")
-        db.execute("DROP TABLE IF EXISTS `CourseVitals`;")
-        db.execute("DROP TABLE IF EXISTS `CourseProduction`;")
+        self.execute("DROP TABLE IF EXISTS `CourseIDMap`;")
+        self.execute("DROP TABLE IF EXISTS `CourseVitals`;")
+        self.execute("DROP TABLE IF EXISTS `CourseProduction`;")
 
-        courseIDMap =   "CREATE TABLE `CourseIDMap` (" +\
-                          "`course_display_name` varchar(50) DEFAULT NULL," +\
-                          "`project_id` int(11) DEFAULT NULL" +\
-                        ") ENGINE=MyISAM DEFAULT CHARSET=utf8;"
+        courseIDMap = (
+                        """
+                        CREATE TABLE `CourseIDMap` (
+                        `project-id` varchar(50) DEFAULT NULL,
+                        `course-display-name` varchar(500) DEFAULT NULL
+                        ) ENGINE=MyISAM DEFAULT CHARSET=utf8;
+                        """
+        )
 
-        courseVitals =  "CREATE TABLE `CourseVitals` (" +\
-                          "`project_id` int(11) DEFAULT NULL," +\
-                          "`project_name` varchar(50) DEFAULT NULL," +\
-                          "`school` varchar(50) DEFAULT NULL," +\
-                          "`department` varchar(50) DEFAULT NULL," +\
-                          "`institute` varchar(50) DEFAULT NULL," +\
-                          "`faculty_name` varchar(50) DEFAULT NULL," +\
-                          "`faculty_org` varchar(50) DEFAULT NULL," +\
-                          "`faculty-title` varchar(50) DEFAULT NULL," +\
-                          "`platform` varchar(50) DEFAULT NULL," +\
-                          "`stanford-course` varchar(50) DEFAULT NULL," +\
-                          "`quarter-offered` varchar(50) DEFAULT NULL," +\
-                          "`duration` varchar(50) DEFAULT NULL," +\
-                          "`exemplary-course3` varchar(50) DEFAULT NULL," +\
-                          "`delivery-format` varchar(50) DEFAULT NULL," +\
-                          "`course-type` varchar(50) DEFAULT NULL," +\
-                          "`course-offering-type` varchar(50) DEFAULT NULL," +\
-                          "`course-level` varchar(50) DEFAULT NULL" +\
-                        ") ENGINE=MyISAM DEFAULT CHARSET=utf8;"
+        courseVitals = (
+                        """
+                        CREATE TABLE `CourseVitals` (
+                        `project-id` int(11) DEFAULT NULL,
+                        `project-name` varchar(500) DEFAULT NULL,
+                        `school` varchar(50) DEFAULT NULL,
+                        `department` varchar(50) DEFAULT NULL,
+                        `institute` varchar(50) DEFAULT NULL,
+                        `faculty-name` varchar(50) DEFAULT NULL,
+                        `faculty-org` varchar(200) DEFAULT NULL,
+                        `faculty-title` varchar(200) DEFAULT NULL,
+                        `platform` varchar(50) DEFAULT NULL,
+                        `stanford-course` varchar(50) DEFAULT NULL,
+                        `quarter-offered` varchar(50) DEFAULT NULL,
+                        `duration` varchar(50) DEFAULT NULL,
+                        `exemplary-course3` varchar(50) DEFAULT NULL,
+                        `delivery-format` varchar(50) DEFAULT NULL,
+                        `course-type` varchar(50) DEFAULT NULL,
+                        `course-offering-type` varchar(50) DEFAULT NULL,
+                        `course-level` varchar(50) DEFAULT NULL
+                        ) ENGINE=MyISAM DEFAULT CHARSET=utf8;
+                        """
+        )
 
-        courseProd =    "CREATE TABLE `CourseProduction` (" +\
-                          "`project_id` int(11) DEFAULT NULL," +\
-                          "`vpol-priority` varchar(50) DEFAULT NULL," +\
-                          "`engineering-support-level` varchar(50) DEFAULT NULL," +\
-                          "`platform-support-level` varchar(50) DEFAULT NULL," +\
-                          "`level-of-effort-id` varchar(50) DEFAULT NULL", +\
-                          "`level-of-effort-production` varchar(50) DEFAULT NULL," +\
-                          "`video-production-handling` varchar(50) DEFAULT NULL," +\
-                          "`production-hours` varchar(50) DEFAULT NULL," +\
-                          "`post-production-hours` varchar(50) DEFAULT NULL," +\
-                          "`seed-grant` varchar(50) DEFAULT NULL," +\
-                          "`funding-amount` int(11) DEFAULT NULL," +\
-                          "`funding-source` varchar(50) DEFAULT NULL," +\
-                          "`funding-stipulations` varchar(500) DEFAULT NULL" +\
-                        ") ENGINE=MyISAM DEFAULT CHARSET=utf8;"
+        courseProd = (
+                        """
+                        CREATE TABLE `CourseProduction` (
+                        `project-id` int(11) DEFAULT NULL,
+                        `vpol-priority` varchar(50) DEFAULT NULL,
+                        `engineering-support-level` varchar(50) DEFAULT NULL,
+                        `platform-support-level` varchar(50) DEFAULT NULL,
+                        `level-of-effort-id` varchar(50) DEFAULT NULL,
+                        `level-of-effort-production` varchar(50) DEFAULT NULL,
+                        `video-production-handling` varchar(50) DEFAULT NULL,
+                        `production-hours` varchar(50) DEFAULT NULL,
+                        `post-production-hours` varchar(50) DEFAULT NULL,
+                        `seed-grant` varchar(50) DEFAULT NULL,
+                        `funding-amount` int(11) DEFAULT NULL,
+                        `funding-source` varchar(50) DEFAULT NULL,
+                        `funding-stipulations` varchar(2000) DEFAULT NULL
+                        ) ENGINE=MyISAM DEFAULT CHARSET=utf8;
+                        """
+        )
 
-        db.execute(courseIDMap)
-        db.execute(courseVitals)
-        db.execute(courseProd)
+        self.execute(courseIDMap)
+        self.execute(courseVitals)
+        self.execute(courseProd)
 
-    def __listify(self, iterable):
+    def __listify(self, iterable, cols=False):
         '''
-        Class method extends stringify list to return all entries in an
-        iterable as a single string, comma delineated.
+        Given an iterable, returns all entries in the iterable as a
+        single string, comma delineated. Cols should be set to true if
+        iterable being listified contains column names for MySQL table.
         '''
         iterlist = ''
         separator = ", "
         for item in iterable:
-            iterlist += item + separator
+            if cols:
+                item = "`%s`" % item
+            iterlist += '%s' % item + separator
         iterlist = iterlist[:-2] #remove extra separator
-        iterlist = "(%s)" % iterlist #wrap in parens
         return iterlist
+
+    def __schema(self, table):
+        '''
+        Given a table name, return a list of column names in the table.
+        '''
+        qstr = "SHOW COLUMNS FROM %s" % table
+        qiter = self.query(qstr)
+        schema = []
+        for q in qiter:
+            schema.append(q[0])
+        return schema
+
+    def __loadTable(self, projects, table):
+        '''
+        Iterates through projects dict and grabs values that match column names
+        in the specified table. Then, executes a query to insert data for each
+        project in the dict into the specified table.
+        '''
+
+        for pid in projects:
+            # Use only relevant fields for this specific table and project
+            schema = self.__schema(table)
+            fields = projects[pid].keys()
+            columns = set(schema).intersection(fields)
+
+            # Get data from this project
+            data = dict()
+            for column in columns:
+                value = projects[pid][column]
+                data[column] = '"%s"' % value
+
+            # Build and run query
+            keys = self.__listify(data.keys(), True)
+            values = self.__listify(data.values())
+            query = "INSERT INTO %s(%s) VALUES (%s);" % (table, keys, values)
+            self.execute(query)
 
     def loadProjects(self, projects):
         '''
@@ -85,16 +134,14 @@ class PodioLoader(MySQLDB):
         to the schema defined when the database is set up.
         '''
         self.__setupDB()
-        for pid in projects:
-            keys = self.listify(projects[pid].keys())
-            values = self.listify(projects[pid].values())
+        total = len(projects)
+        self.__loadTable(projects, "CourseIDMap")
+        print "CourseIDMap loaded with data from %d projects.\n" % total
+        self.__loadTable(projects, "CourseVitals")
+        print "CourseVitals loaded with data from %d projects.\n" % total
+        self.__loadTable(projects, "CourseProduction")
+        print "CourseProduction loaded with data from %d projects.\n" % total
 
-            #TODO: split keys and values into two tables
-
-            # build SQL query string
-            query = "insert into q_IDMap(%s) values (%s);" % (keys, values)
-            q_IDMap = "insert into "
-            #TODO: include pid in each table!
 
 
 # Initialize extractor from config file
@@ -110,7 +157,6 @@ db_pass = getpass.getpass("MySQL password: ")
 data = extractor.getProjects(username=pd_user, password=pd_pass)
 
 # Load projects to MySQL database
-db = PodioLoader(user=db_user, passwd=db_pass)
-result = db.loadProjects(data)
+db = PodioLoader(user=db_user, passwd=db_pass, db='Podio')
+db.loadProjects(data)
 db.close()
-print result

@@ -49,6 +49,7 @@ class PodioExtractor(object):
         @param url: Platform URL
         @type url: String
         '''
+        url = url.replace('"', '') # clean out extraneous quotes
         cid = urlparse(url).path
         if 'stanford.edu' in url:
             cid = cid[8:-5] # remove extra info from SU URLs
@@ -63,12 +64,11 @@ class PodioExtractor(object):
         @param projects: Raw dict of projects out of Podio API
         @type projects: Dictionary
         '''
-        #TODO: Document output into SQL schema
 
         projectData = dict()
         for proj in projects['items']:
-            # Build fields dict, initialize with course title
-            fieldData = { 'title': proj['title'] }
+            # Build fields dict, initialize with course title and project id
+            fieldData = { 'title': proj['title'], 'project-id': proj['app_item_id'] }
             for field in proj['fields']:
                 ext_id = field['external_id']
 
@@ -79,7 +79,6 @@ class PodioExtractor(object):
 
                     # type: text
                     elif field['type'] == "text":
-                        #TODO: Scrub HTML from input
                         fieldData[ext_id] = field['values'][0]['value']
 
                     # type: contact
