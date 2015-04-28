@@ -1,6 +1,10 @@
 from pymysql_utils1 import MySQLDB
 import getpass
 from podioextractor import PodioExtractor
+from os.path import expanduser
+import os.path
+import sys
+import ConfigParser
 
 class PodioLoader(MySQLDB):
     '''
@@ -136,27 +140,34 @@ class PodioLoader(MySQLDB):
         self.__setupDB()
         total = len(projects)
         self.__loadTable(projects, "CourseIDMap")
-        print "CourseIDMap loaded with data from %d projects.\n" % total
+        # print "CourseIDMap loaded with data from %d projects.\n" % total
         self.__loadTable(projects, "CourseVitals")
-        print "CourseVitals loaded with data from %d projects.\n" % total
+        # print "CourseVitals loaded with data from %d projects.\n" % total
         self.__loadTable(projects, "CourseProduction")
-        print "CourseProduction loaded with data from %d projects.\n" % total
+        # print "CourseProduction loaded with data from %d projects.\n" % total
 
 
 
-# Initialize extractor from config file
-extractor = PodioExtractor('key.cfg')
 
-# Get user credentials for Podio and MySQL database
-pd_user = extractor.user_input("Podio username: ")
-pd_pass = getpass.getpass("Podio password: ")
-db_user = extractor.user_input("MySQL username: ")
-db_pass = getpass.getpass("MySQL password: ")
+if __name__ == '__main__':
+    # Read configuration file
+    cfg_dir = expanduser("~") + '/.ssh/key.cfg'
+    config = ConfigParser.RawConfigParser()
+    config.read(cfg_dir)
 
-# Extract and transform Podio data to human-readable format
-data = extractor.getProjects(username=pd_user, password=pd_pass)
+    # Initialize extractor from config file
+    extractor = PodioExtractor(cfg_dir)
 
-# Load projects to MySQL database
-db = PodioLoader(user=db_user, passwd=db_pass, db='Podio')
-db.loadProjects(data)
-db.close()
+    # Get user credentials for Podio and MySQL database
+    pd_user = config.get('PodioUser', 'p_user')
+    pd_pass = config.get('PodioUser', 'p_pass')
+    db_user = config.get('MySQLUser', 'm_user')
+    db_pass = config.get('MySQLUser', 'm_pass')
+
+    # Extract and transform Podio data to human-readable format
+    data = extractor.getProjects(username=pd_user, password=pd_pass)
+
+    # Load projects to MySQL database
+    db = PodioLoader(user=db_user, passwd=db_pass, db='Podio')
+    db.loadProjects(data)
+    db.close()

@@ -11,7 +11,7 @@ class PodioExtractor(object):
     Interface to Podio API for extracting project information.
     Author: Alex Kindel
     '''
-    def __init__(self, config):
+    def __init__(self, cfgDir):
         '''
         Initialize with a config file.
 
@@ -24,7 +24,7 @@ class PodioExtractor(object):
         '''
         try:
             config = ConfigParser.RawConfigParser()
-            config.read('key.cfg')
+            config.read(cfgDir)
             self.etl = config.get('APIKey', 'etl') # api app id
             self.key = config.get('APIKey', 'key') # api key
             self.app = config.get('APIKey', 'app') # podio internal app id
