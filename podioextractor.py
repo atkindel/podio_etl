@@ -3,6 +3,7 @@ import json
 import getpass
 import ConfigParser
 from urlparse import urlparse
+import urllib2
 import sys
 
 
@@ -56,10 +57,27 @@ class PodioExtractor(object):
         @type url: String
         '''
         cid = urlparse(url).path
+        if 'coursework' in url:
+            return 'NULL'
         if 'stanford.edu' in url:
-            cid = cid[8:-5] # remove extra info from SU URLs
-        cid = cid.strip('/')
-        return cid
+            print cid
+            lind = cid.find('courses')
+            print lind
+            if lind > -1:
+                lind += 7
+                cid = cid[lind:]
+            rind = cid.find('about')
+            print rind
+            if rind > -1:
+                cid = cid[:rind]
+            iind = cid.find('info')
+            if iind > -1:
+                cid = cid[:iind]
+            return cid.strip('/')
+        elif ('coursera.org' in url) or ('novoed.com' in url):
+            return cid.strip('/')
+        else:
+            return 'NULL'
 
     def __transformBatch(self, projects):
         '''
